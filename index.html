@@ -1,172 +1,261 @@
 <!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
 <meta charset="UTF-8">
-<title>Mini Arcade</title>
+<title>Arcade GO!</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 body{
   margin:0;
-  background:#111;
+  background:black;
   color:white;
-  font-family:Arial;
   text-align:center;
+  font-family:Arial, sans-serif;
 }
-button{
-  margin:10px;
-  padding:10px 20px;
-  font-size:16px;
+
+#title{
+  font-size:42px;
+  margin:20px;
+  color:lime;
+  text-shadow:0 0 15px lime;
+}
+
+#startScreen button, #backBtn{
+  display:block;
+  margin:10px auto;
+  padding:15px 30px;
+  font-size:18px;
+  border-radius:10px;
   cursor:pointer;
 }
+
 canvas{
-  background:black;
-  display:block;
-  margin:20px auto;
+  display:none;
+  background:#000;
+  margin:auto;
+  border:4px solid lime;
 }
 </style>
 </head>
+
 <body>
 
-<h1>🎮 Mini Arcade</h1>
+<h1 id="title">🎮 Arcade GO!</h1>
 
-<div id="menu">
-  <button onclick="startGame('snake')">Snake</button>
-  <button onclick="startGame('pong')">Pong</button>
+<div id="startScreen">
+  <button onclick="launch('snake')">🐍 Snake</button>
+  <button onclick="launch('pong')">🏓 Pong (2P)</button>
+  <button onclick="launch('pacman')">🟡 Pac-Man</button>
 </div>
+
+<button id="backBtn" onclick="goBack()" style="display:none">⬅ Terug</button>
 
 <canvas id="game" width="500" height="400"></canvas>
 
 <script>
-/* =====================
-   ARCADE CORE
-   ===================== */
-const Arcade={
-  game:"",
-  score:0,
-  data:JSON.parse(localStorage.getItem("scores")||"{}"),
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let loop;
 
-  start(name){
-    this.game=name;
-    this.score=0;
-  },
-
-  add(points){
-    this.score+=points;
-    if(!this.data[this.game]||this.score>this.data[this.game]){
-      this.data[this.game]=this.score;
-      localStorage.setItem("scores",JSON.stringify(this.data));
-    }
-  },
-
-  leaderboard(ctx){
-    let y=20;
-    ctx.fillStyle="white";
-    ctx.fillText("LEADERBOARD",350,20);
-    Object.entries(this.data)
-      .sort((a,b)=>b[1]-a[1])
-      .forEach(([g,s])=>{
-        y+=15;
-        ctx.fillText(g+": "+s,350,y);
-      });
-  }
-};
-
-/* =====================
-   GAME ENGINE
-   ===================== */
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-let loop=null;
-
-/* =====================
-   SNAKE
-   ===================== */
-let snake,food,dir;
-
-function snakeGame(){
-  Arcade.start("snake");
-  snake=[[200,200]];
-  food=[100,100];
-  dir=[20,0];
-
-  addEventListener("keydown",e=>{
-    if(e.key==="ArrowUp")dir=[0,-20];
-    if(e.key==="ArrowDown")dir=[0,20];
-    if(e.key==="ArrowLeft")dir=[-20,0];
-    if(e.key==="ArrowRight")dir=[20,0];
-  });
-
-  loop=setInterval(()=>{
-    ctx.clearRect(0,0,500,400);
-    let head=[snake[0][0]+dir[0],snake[0][1]+dir[1]];
-    snake.unshift(head);
-
-    if(head[0]===food[0]&&head[1]===food[1]){
-      Arcade.add(10);
-      food=[Math.floor(Math.random()*25)*20,Math.floor(Math.random()*20)*20];
-    }else snake.pop();
-
-    ctx.fillStyle="lime";
-    snake.forEach(p=>ctx.fillRect(p[0],p[1],18,18));
-
-    ctx.fillStyle="red";
-    ctx.fillRect(food[0],food[1],18,18);
-
-    ctx.fillStyle="white";
-    ctx.fillText("Score: "+Arcade.score,10,15);
-    Arcade.leaderboard(ctx);
-  },120);
+// ---------- GELUID ----------
+function beep(freq,time){
+  let a=new(AudioContext||webkitAudioContext)();
+  let o=a.createOscillator();
+  o.frequency.value=freq;
+  o.connect(a.destination);
+  o.start();
+  setTimeout(()=>{o.stop();a.close()},time);
 }
 
-/* =====================
-   PONG
-   ===================== */
-let ball,p1,p2;
-
-function pongGame(){
-  Arcade.start("pong");
-  ball={x:250,y:200,dx:4,dy:4};
-  p1={y:150};
-  p2={y:150};
-
-  addEventListener("keydown",e=>{
-    if(e.key==="w")p1.y-=20;
-    if(e.key==="s")p1.y+=20;
-    if(e.key==="ArrowUp")p2.y-=20;
-    if(e.key==="ArrowDown")p2.y+=20;
-  });
-
-  loop=setInterval(()=>{
-    ctx.clearRect(0,0,500,400);
-
-    ball.x+=ball.dx;
-    ball.y+=ball.dy;
-    if(ball.y<0||ball.y>390)ball.dy*=-1;
-
-    if(ball.x<20&&ball.y>p1.y&&ball.y<p1.y+80)ball.dx*=-1;
-    if(ball.x>470&&ball.y>p2.y&&ball.y<p2.y+80)ball.dx*=-1;
-
-    if(ball.x<0||ball.x>500){
-      Arcade.add(1);
-      ball={x:250,y:200,dx:4,dy:4};
-    }
-
-    ctx.fillRect(10,p1.y,10,80);
-    ctx.fillRect(480,p2.y,10,80);
-    ctx.fillRect(ball.x,ball.y,10,10);
-
-    ctx.fillText("Score: "+Arcade.score,10,15);
-    Arcade.leaderboard(ctx);
-  },30);
+// ---------- MENU ----------
+function launch(game){
+  document.getElementById("startScreen").style.display="none";
+  document.getElementById("title").style.display="none";
+  document.getElementById("backBtn").style.display="block";
+  canvas.style.display="block";
+  startGame(game);
 }
 
-/* =====================
-   START GAME
-   ===================== */
+function goBack(){
+  clearInterval(loop);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById("startScreen").style.display="block";
+  document.getElementById("title").style.display="block";
+  document.getElementById("backBtn").style.display="none";
+  canvas.style.display="none";
+}
+
+// ---------- GAME START ----------
 function startGame(name){
   clearInterval(loop);
-  ctx.clearRect(0,0,500,400);
-  if(name==="snake")snakeGame();
-  if(name==="pong")pongGame();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(name==="snake") snakeGame();
+  if(name==="pong") pongGame();
+  if(name==="pacman") pacmanGame();
+}
+
+// ================= SNAKE =================
+function snakeGame(){
+let box=20;
+let snake=[{x:200,y:200}];
+let dir="RIGHT";
+let food={x:100,y:100};
+let score=0;
+
+addEventListener("keydown",e=>{
+  if(e.key==="ArrowUp"&&dir!=="DOWN")dir="UP";
+  if(e.key==="ArrowDown"&&dir!=="UP")dir="DOWN";
+  if(e.key==="ArrowLeft"&&dir!=="RIGHT")dir="LEFT";
+  if(e.key==="ArrowRight"&&dir!=="LEFT")dir="RIGHT";
+});
+
+loop=setInterval(()=>{
+ctx.clearRect(0,0,500,400);
+
+// muur
+ctx.strokeStyle="lime";
+ctx.lineWidth=4;
+ctx.strokeRect(0,0,500,400);
+
+let head={x:snake[0].x,y:snake[0].y};
+if(dir==="UP")head.y-=box;
+if(dir==="DOWN")head.y+=box;
+if(dir==="LEFT")head.x-=box;
+if(dir==="RIGHT")head.x+=box;
+
+// muur = dood
+if(head.x<0||head.y<0||head.x>480||head.y>380){
+  beep(200,300);
+  clearInterval(loop);
+  alert("Game Over");
+  return;
+}
+
+snake.unshift(head);
+if(head.x===food.x&&head.y===food.y){
+  score++;
+  beep(800,80);
+  food={
+    x:Math.floor(Math.random()*25)*20,
+    y:Math.floor(Math.random()*20)*20
+  };
+}else{
+  snake.pop();
+}
+
+ctx.fillStyle="red";
+ctx.fillRect(food.x,food.y,box,box);
+
+ctx.fillStyle="lime";
+snake.forEach(s=>ctx.fillRect(s.x,s.y,box,box));
+
+ctx.fillText("Score: "+score,10,15);
+},120);
+}
+
+// ================= PONG (2P) =================
+function pongGame(){
+let ball={x:250,y:200,dx:4,dy:4,size:8};
+let p1={x:10,y:150,w:10,h:80,dy:0};
+let p2={x:480,y:150,w:10,h:80,dy:0};
+
+addEventListener("keydown",e=>{
+  if(e.key==="w")p1.dy=-5;
+  if(e.key==="s")p1.dy=5;
+  if(e.key==="ArrowUp")p2.dy=-5;
+  if(e.key==="ArrowDown")p2.dy=5;
+});
+addEventListener("keyup",()=>{p1.dy=0;p2.dy=0});
+
+loop=setInterval(()=>{
+ctx.clearRect(0,0,500,400);
+
+// muren
+ctx.strokeStyle="white";
+ctx.lineWidth=4;
+ctx.strokeRect(0,0,500,400);
+
+ball.x+=ball.dx;
+ball.y+=ball.dy;
+p1.y+=p1.dy;
+p2.y+=p2.dy;
+
+// paddles binnen veld
+p1.y=Math.max(0,Math.min(320,p1.y));
+p2.y=Math.max(0,Math.min(320,p2.y));
+
+// botsen
+if(ball.y<0||ball.y>400)ball.dy*=-1;
+if(ball.x<p1.x+p1.w&&ball.y>p1.y&&ball.y<p1.y+p1.h){
+  ball.dx*=-1;beep(600,80);
+}
+if(ball.x>p2.x&&ball.y>p2.y&&ball.y<p2.y+p2.h){
+  ball.dx*=-1;beep(600,80);
+}
+
+ctx.fillRect(p1.x,p1.y,p1.w,p1.h);
+ctx.fillRect(p2.x,p2.y,p2.w,p2.h);
+ctx.beginPath();
+ctx.arc(ball.x,ball.y,ball.size,0,Math.PI*2);
+ctx.fill();
+},30);
+}
+
+// ================= PAC-MAN =================
+function pacmanGame(){
+let pac={x:250,y:200,dx:0,dy:0};
+let ghosts=[{x:100,y:100,dx:2,dy:0,color:"red"}];
+let pellets=[];
+for(let y=40;y<360;y+=40)
+for(let x=40;x<460;x+=40)
+pellets.push({x,y});
+
+addEventListener("keydown",e=>{
+  if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-2}
+  if(e.key==="ArrowDown"){pac.dx=0;pac.dy=2}
+  if(e.key==="ArrowLeft"){pac.dx=-2;pac.dy=0}
+  if(e.key==="ArrowRight"){pac.dx=2;pac.dy=0}
+});
+
+loop=setInterval(()=>{
+ctx.clearRect(0,0,500,400);
+
+pac.x+=pac.dx;
+pac.y+=pac.dy;
+
+ghosts.forEach(g=>{
+  g.x+=g.dx;
+  g.y+=g.dy;
+  if(Math.random()<0.02){
+    let d=[[2,0],[-2,0],[0,2],[0,-2]][Math.floor(Math.random()*4)];
+    g.dx=d[0];g.dy=d[1];
+  }
+  if(Math.abs(g.x-pac.x)<12&&Math.abs(g.y-pac.y)<12){
+    beep(150,300);
+    clearInterval(loop);
+    alert("Game Over");
+  }
+  ctx.fillStyle=g.color;
+  ctx.beginPath();
+  ctx.arc(g.x,g.y,10,0,Math.PI*2);
+  ctx.fill();
+});
+
+pellets=pellets.filter(p=>{
+  let hit=Math.abs(p.x-pac.x)<10&&Math.abs(p.y-pac.y)<10;
+  if(hit)beep(800,50);
+  return !hit;
+});
+
+ctx.fillStyle="yellow";
+ctx.beginPath();
+ctx.arc(pac.x,pac.y,10,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="white";
+pellets.forEach(p=>ctx.fillRect(p.x,p.y,4,4));
+},30);
 }
 </script>
 
