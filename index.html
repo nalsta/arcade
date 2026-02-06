@@ -3,259 +3,360 @@
 <head>
 <meta charset="UTF-8">
 <title>Arcade GO!</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
   margin:0;
-  background:black;
-  color:white;
-  text-align:center;
   font-family:Arial, sans-serif;
+  text-align:center;
+  background: linear-gradient(180deg,#1e3c72,#2a5298);
+  color:white;
 }
 
-#title{
-  font-size:42px;
+h1{
   margin:20px;
-  color:lime;
-  text-shadow:0 0 15px lime;
+  font-size:48px;
 }
 
-#startScreen button, #backBtn{
-  display:block;
-  margin:10px auto;
-  padding:15px 30px;
+#menu button{
   font-size:18px;
-  border-radius:10px;
+  padding:10px 20px;
+  margin:6px;
+  border:none;
+  border-radius:8px;
   cursor:pointer;
 }
 
+#menu button:hover{
+  background:#ffd700;
+}
+
 canvas{
-  display:none;
-  background:#000;
-  margin:auto;
-  border:4px solid lime;
+  display:block;
+  margin:20px auto;
+  background:black;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.6);
 }
 </style>
 </head>
 
 <body>
 
-<h1 id="title">🎮 Arcade GO!</h1>
+<h1>🎮 Arcade GO!</h1>
 
-<div id="startScreen">
+<div id="menu">
   <button onclick="launch('snake')">🐍 Snake</button>
-  <button onclick="launch('pong')">🏓 Pong (2P)</button>
+  <button onclick="launch('pong')">🏓 Pong</button>
+  <button onclick="launch('flappy')">🐦 Flappy Bird</button>
   <button onclick="launch('pacman')">🟡 Pac-Man</button>
+  <button onclick="toggleSound()">🔊 Geluid aan / uit</button>
 </div>
-
-<button id="backBtn" onclick="goBack()" style="display:none">⬅ Terug</button>
 
 <canvas id="game" width="500" height="400"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let canvas = document.getElementById("game");
+let ctx = canvas.getContext("2d");
 let loop;
+let score = 0;
+let soundOn = true;
 
-// ---------- GELUID ----------
+function toggleSound(){
+  soundOn = !soundOn;
+}
+
 function beep(freq,time){
-  let a=new(AudioContext||webkitAudioContext)();
-  let o=a.createOscillator();
-  o.frequency.value=freq;
+  if(!soundOn) return;
+  let a = new (window.AudioContext||window.webkitAudioContext)();
+  let o = a.createOscillator();
+  o.frequency.value = freq;
   o.connect(a.destination);
   o.start();
-  setTimeout(()=>{o.stop();a.close()},time);
+  setTimeout(()=>o.stop(),time);
 }
 
-// ---------- MENU ----------
 function launch(game){
-  document.getElementById("startScreen").style.display="none";
-  document.getElementById("title").style.display="none";
-  document.getElementById("backBtn").style.display="block";
-  canvas.style.display="block";
-  startGame(game);
-}
-
-function goBack(){
   clearInterval(loop);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  document.getElementById("startScreen").style.display="block";
-  document.getElementById("title").style.display="block";
-  document.getElementById("backBtn").style.display="none";
-  canvas.style.display="none";
+  ctx.clearRect(0,0,500,400);
+  if(game==="snake") snakeGame();
+  if(game==="pong") pongGame();
+  if(game==="flappy") flappyGame();
+  if(game==="pacman") pacmanGame();
 }
 
-// ---------- GAME START ----------
-function startGame(name){
+function gameOver(name){
   clearInterval(loop);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(name==="snake") snakeGame();
-  if(name==="pong") pongGame();
-  if(name==="pacman") pacmanGame();
+  ctx.fillStyle="rgba(0,0,0,0.7)";
+  ctx.fillRect(0,0,500,400);
+  ctx.fillStyle="white";
+  ctx.font="32px Arial";
+  ctx.fillText("GAME OVER",140,180);
+  ctx.font="18px Arial";
+  ctx.fillText(name+" | Score: "+score,150,220);
 }
 
-// ================= SNAKE =================
+/* ---------- SNAKE ---------- */
 function snakeGame(){
-let box=20;
-let snake=[{x:200,y:200}];
-let dir="RIGHT";
-let food={x:100,y:100};
-let score=0;
+  let snake=[[200,200]];
+  let dir=[20,0];
+  let food=[100,100];
+  score=0;
 
-addEventListener("keydown",e=>{
-  if(e.key==="ArrowUp"&&dir!=="DOWN")dir="UP";
-  if(e.key==="ArrowDown"&&dir!=="UP")dir="DOWN";
-  if(e.key==="ArrowLeft"&&dir!=="RIGHT")dir="LEFT";
-  if(e.key==="ArrowRight"&&dir!=="LEFT")dir="RIGHT";
-});
+  addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp")dir=[0,-20];
+    if(e.key==="ArrowDown")dir=[0,20];
+    if(e.key==="ArrowLeft")dir=[-20,0];
+    if(e.key==="ArrowRight")dir=[20,0];
+  });
 
-loop=setInterval(()=>{
-ctx.clearRect(0,0,500,400);
+  loop=setInterval(()=>{
+    ctx.clearRect(0,0,500,400);
 
-// muur
-ctx.strokeStyle="lime";
-ctx.lineWidth=4;
-ctx.strokeRect(0,0,500,400);
+    let head=[snake[0][0]+dir[0],snake[0][1]+dir[1]];
 
-let head={x:snake[0].x,y:snake[0].y};
-if(dir==="UP")head.y-=box;
-if(dir==="DOWN")head.y+=box;
-if(dir==="LEFT")head.x-=box;
-if(dir==="RIGHT")head.x+=box;
+    if(head[0]<0||head[1]<0||head[0]>=500||head[1]>=400){
+      gameOver("Snake");
+      return;
+    }
 
-// muur = dood
-if(head.x<0||head.y<0||head.x>480||head.y>380){
-  beep(200,300);
-  clearInterval(loop);
-  alert("Game Over");
-  return;
+    snake.unshift(head);
+
+    if(head[0]==food[0]&&head[1]==food[1]){
+      score++;
+      food=[Math.floor(Math.random()*25)*20,Math.floor(Math.random()*20)*20];
+      beep(600,80);
+    }else{
+      snake.pop();
+    }
+
+    ctx.fillStyle="lime";
+    snake.forEach(s=>ctx.fillRect(s[0],s[1],20,20));
+
+    ctx.fillStyle="red";
+    ctx.fillRect(food[0],food[1],20,20);
+
+    ctx.fillStyle="white";
+    ctx.fillText("Score: "+score,10,20);
+  },120);
 }
 
-snake.unshift(head);
-if(head.x===food.x&&head.y===food.y){
-  score++;
-  beep(800,80);
-  food={
-    x:Math.floor(Math.random()*25)*20,
-    y:Math.floor(Math.random()*20)*20
-  };
-}else{
-  snake.pop();
-}
-
-ctx.fillStyle="red";
-ctx.fillRect(food.x,food.y,box,box);
-
-ctx.fillStyle="lime";
-snake.forEach(s=>ctx.fillRect(s.x,s.y,box,box));
-
-ctx.fillText("Score: "+score,10,15);
-},120);
-}
-
-// ================= PONG (2P) =================
+/* ---------- PONG ---------- */
 function pongGame(){
-let ball={x:250,y:200,dx:4,dy:4,size:8};
-let p1={x:10,y:150,w:10,h:80,dy:0};
-let p2={x:480,y:150,w:10,h:80,dy:0};
+  let p1=160;
+  let ball=[250,200,3,3];
+  score=0;
 
-addEventListener("keydown",e=>{
-  if(e.key==="w")p1.dy=-5;
-  if(e.key==="s")p1.dy=5;
-  if(e.key==="ArrowUp")p2.dy=-5;
-  if(e.key==="ArrowDown")p2.dy=5;
-});
-addEventListener("keyup",()=>{p1.dy=0;p2.dy=0});
+  addEventListener("mousemove",e=>{
+    p1=e.offsetY-40;
+  });
 
-loop=setInterval(()=>{
-ctx.clearRect(0,0,500,400);
+  loop=setInterval(()=>{
+    ctx.clearRect(0,0,500,400);
 
-// muren
-ctx.strokeStyle="white";
-ctx.lineWidth=4;
-ctx.strokeRect(0,0,500,400);
+    ball[0]+=ball[2];
+    ball[1]+=ball[3];
 
-ball.x+=ball.dx;
-ball.y+=ball.dy;
-p1.y+=p1.dy;
-p2.y+=p2.dy;
+    if(ball[1]<0||ball[1]>400)ball[3]*=-1;
 
-// paddles binnen veld
-p1.y=Math.max(0,Math.min(320,p1.y));
-p2.y=Math.max(0,Math.min(320,p2.y));
+    if(ball[0]<20&&ball[1]>p1&&ball[1]<p1+80){
+      ball[2]*=-1;
+      score++;
+      beep(700,60);
+    }
 
-// botsen
-if(ball.y<0||ball.y>400)ball.dy*=-1;
-if(ball.x<p1.x+p1.w&&ball.y>p1.y&&ball.y<p1.y+p1.h){
-  ball.dx*=-1;beep(600,80);
-}
-if(ball.x>p2.x&&ball.y>p2.y&&ball.y<p2.y+p2.h){
-  ball.dx*=-1;beep(600,80);
-}
+    if(ball[0]>480){
+      gameOver("Pong");
+      return;
+    }
 
-ctx.fillRect(p1.x,p1.y,p1.w,p1.h);
-ctx.fillRect(p2.x,p2.y,p2.w,p2.h);
-ctx.beginPath();
-ctx.arc(ball.x,ball.y,ball.size,0,Math.PI*2);
-ctx.fill();
-},30);
+    ctx.fillStyle="white";
+    ctx.fillRect(10,p1,10,80);
+    ctx.beginPath();
+    ctx.arc(ball[0],ball[1],8,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillText("Score: "+score,10,20);
+  },20);
 }
 
-// ================= PAC-MAN =================
+/* ---------- FLAPPY BIRD ---------- */
+function flappyGame(){
+  let started=false;
+  let night=Math.random()<0.5;
+  score=0;
+
+  let bird={
+    x:80,y:200,v:0,
+    color:["yellow","red","cyan","lime"][Math.floor(Math.random()*4)]
+  };
+
+  let pipes=[];
+  let gravity=0.5;
+  let jump=-8;
+  let gap=120;
+
+  function flap(){
+    bird.v=jump;
+    started=true;
+    beep(800,60);
+  }
+
+  addEventListener("keydown",e=>{
+    if(e.key===" ")flap();
+  });
+  canvas.addEventListener("touchstart",flap);
+
+  loop=setInterval(()=>{
+    ctx.fillStyle=night?"#0b132b":"#70c5ce";
+    ctx.fillRect(0,0,500,400);
+
+    ctx.fillStyle=night?"white":"rgba(255,255,255,0.6)";
+    for(let i=0;i<20;i++){
+      ctx.fillRect(Math.random()*500,Math.random()*200,2,2);
+    }
+
+    if(!started){
+      ctx.fillStyle="white";
+      ctx.font="28px Arial";
+      ctx.fillText("FLAPPY BIRD",140,170);
+      ctx.font="16px Arial";
+      ctx.fillText("SPATIE of TIK",180,210);
+      return;
+    }
+
+    bird.v+=gravity;
+    bird.y+=bird.v;
+
+    ctx.fillStyle=bird.color;
+    ctx.beginPath();
+    ctx.arc(bird.x,bird.y,10,0,Math.PI*2);
+    ctx.fill();
+
+    if(pipes.length==0||pipes[pipes.length-1].x<300){
+      let top=Math.random()*200+40;
+      pipes.push({x:500,top:top,passed:false});
+    }
+
+    pipes.forEach(p=>{
+      p.x-=2;
+      ctx.fillStyle="green";
+      ctx.fillRect(p.x,0,40,p.top);
+      ctx.fillRect(p.x,p.top+gap,40,400);
+
+      if(!p.passed&&p.x<bird.x){
+        p.passed=true;
+        score++;
+      }
+
+      if(
+        bird.x+10>p.x&&bird.x-10<p.x+40&&
+        (bird.y-10<p.top||bird.y+10>p.top+gap)
+      ){
+        gameOver("Flappy Bird");
+      }
+    });
+
+    if(bird.y<0||bird.y>400){
+      gameOver("Flappy Bird");
+    }
+
+    ctx.fillStyle="white";
+    ctx.fillText("Score: "+score,10,20);
+  },30);
+}
+
+/* ---------- PAC-MAN ---------- */
 function pacmanGame(){
-let pac={x:250,y:200,dx:0,dy:0};
-let ghosts=[{x:100,y:100,dx:2,dy:0,color:"red"}];
-let pellets=[];
-for(let y=40;y<360;y+=40)
-for(let x=40;x<460;x+=40)
-pellets.push({x,y});
+  clearInterval(loop);
+  score=0;
 
-addEventListener("keydown",e=>{
-  if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-2}
-  if(e.key==="ArrowDown"){pac.dx=0;pac.dy=2}
-  if(e.key==="ArrowLeft"){pac.dx=-2;pac.dy=0}
-  if(e.key==="ArrowRight"){pac.dx=2;pac.dy=0}
-});
+  const tile=20;
+  let map=[
+    "###############",
+    "#.............#",
+    "#.###.###.###..#",
+    "#.............#",
+    "#.###.#.#.###..#",
+    "#.....#.#.....#",
+    "#####.#.#.#####",
+    "#.............#",
+    "#.###.###.###..#",
+    "#.............#",
+    "###############"
+  ];
 
-loop=setInterval(()=>{
-ctx.clearRect(0,0,500,400);
+  let pac={x:1,y:1,dx:0,dy:0};
+  let ghosts=[
+    {x:7,y:5,dx:1,dy:0,color:"red"},
+    {x:9,y:5,dx:-1,dy:0,color:"pink"}
+  ];
 
-pac.x+=pac.dx;
-pac.y+=pac.dy;
+  addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-1;}
+    if(e.key==="ArrowDown"){pac.dx=0;pac.dy=1;}
+    if(e.key==="ArrowLeft"){pac.dx=-1;pac.dy=0;}
+    if(e.key==="ArrowRight"){pac.dx=1;pac.dy=0;}
+  });
 
-ghosts.forEach(g=>{
-  g.x+=g.dx;
-  g.y+=g.dy;
-  if(Math.random()<0.02){
-    let d=[[2,0],[-2,0],[0,2],[0,-2]][Math.floor(Math.random()*4)];
-    g.dx=d[0];g.dy=d[1];
-  }
-  if(Math.abs(g.x-pac.x)<12&&Math.abs(g.y-pac.y)<12){
-    beep(150,300);
-    clearInterval(loop);
-    alert("Game Over");
-  }
-  ctx.fillStyle=g.color;
-  ctx.beginPath();
-  ctx.arc(g.x,g.y,10,0,Math.PI*2);
-  ctx.fill();
-});
+  loop=setInterval(()=>{
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,500,400);
 
-pellets=pellets.filter(p=>{
-  let hit=Math.abs(p.x-pac.x)<10&&Math.abs(p.y-pac.y)<10;
-  if(hit)beep(800,50);
-  return !hit;
-});
+    for(let y=0;y<map.length;y++){
+      for(let x=0;x<map[y].length;x++){
+        if(map[y][x]==="#"){
+          ctx.fillStyle="blue";
+          ctx.fillRect(x*tile,y*tile,tile,tile);
+        }
+        if(map[y][x]==="."){
+          ctx.fillStyle="white";
+          ctx.fillRect(x*tile+8,y*tile+8,4,4);
+        }
+      }
+    }
 
-ctx.fillStyle="yellow";
-ctx.beginPath();
-ctx.arc(pac.x,pac.y,10,0,Math.PI*2);
-ctx.fill();
+    let nx=pac.x+pac.dx;
+    let ny=pac.y+pac.dy;
+    if(map[ny][nx]!=="#"){
+      pac.x=nx;
+      pac.y=ny;
+    }
 
-ctx.fillStyle="white";
-pellets.forEach(p=>ctx.fillRect(p.x,p.y,4,4));
-},30);
+    if(map[pac.y][pac.x]==="."){
+      map[pac.y]=map[pac.y].substring(0,pac.x)+" "+map[pac.y].substring(pac.x+1);
+      score++;
+      beep(600,50);
+    }
+
+    ctx.fillStyle="yellow";
+    ctx.beginPath();
+    ctx.arc(pac.x*tile+10,pac.y*tile+10,9,0.25*Math.PI,1.75*Math.PI);
+    ctx.lineTo(pac.x*tile+10,pac.y*tile+10);
+    ctx.fill();
+
+    ghosts.forEach(g=>{
+      if(Math.random()<0.1){
+        let d=[[1,0],[-1,0],[0,1],[0,-1]][Math.floor(Math.random()*4)];
+        g.dx=d[0]; g.dy=d[1];
+      }
+      if(map[g.y+g.dy][g.x+g.dx]!=="#"){
+        g.x+=g.dx; g.y+=g.dy;
+      }
+
+      ctx.fillStyle=g.color;
+      ctx.beginPath();
+      ctx.arc(g.x*tile+10,g.y*tile+10,9,Math.PI,0);
+      ctx.fillRect(g.x*tile+1,g.y*tile+10,18,9);
+
+      if(g.x===pac.x&&g.y===pac.y){
+        gameOver("Pac-Man");
+      }
+    });
+
+    ctx.fillStyle="white";
+    ctx.fillText("Score: "+score,10,20);
+  },150);
 }
 </script>
 
