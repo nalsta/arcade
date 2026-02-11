@@ -58,9 +58,19 @@ canvas{
 <script>
 let canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
-let loop;
+let loop = null;
 let score = 0;
 let soundOn = true;
+let currentGame = "";
+
+function clearGame(){
+  clearInterval(loop);
+  loop = null;
+  document.onkeydown = null;
+  canvas.onclick = null;
+  canvas.ontouchstart = null;
+  canvas.onmousemove = null;
+}
 
 function toggleSound(){
   soundOn = !soundOn;
@@ -77,8 +87,10 @@ function beep(freq,time){
 }
 
 function launch(game){
-  clearInterval(loop);
+  clearGame();
   ctx.clearRect(0,0,500,400);
+  currentGame = game;
+
   if(game==="snake") snakeGame();
   if(game==="pong") pongGame();
   if(game==="flappy") flappyGame();
@@ -86,29 +98,30 @@ function launch(game){
 }
 
 function gameOver(name){
-  clearInterval(loop);
+  clearGame();
   ctx.fillStyle="rgba(0,0,0,0.7)";
   ctx.fillRect(0,0,500,400);
   ctx.fillStyle="white";
   ctx.font="32px Arial";
-  ctx.fillText("GAME OVER",140,180);
+  ctx.fillText("GAME OVER",150,180);
   ctx.font="18px Arial";
-  ctx.fillText(name+" | Score: "+score,150,220);
+  ctx.fillText(name+" | Score: "+score,160,220);
 }
 
-/* ---------- SNAKE ---------- */
+/* ---------------- SNAKE ---------------- */
+
 function snakeGame(){
   let snake=[[200,200]];
   let dir=[20,0];
   let food=[100,100];
   score=0;
 
-  addEventListener("keydown",e=>{
+  document.onkeydown = function(e){
     if(e.key==="ArrowUp")dir=[0,-20];
     if(e.key==="ArrowDown")dir=[0,20];
     if(e.key==="ArrowLeft")dir=[-20,0];
     if(e.key==="ArrowRight")dir=[20,0];
-  });
+  };
 
   loop=setInterval(()=>{
     ctx.clearRect(0,0,500,400);
@@ -141,15 +154,18 @@ function snakeGame(){
   },120);
 }
 
-/* ---------- PONG ---------- */
+/* ---------------- PONG ---------------- */
+
 function pongGame(){
   let p1=160;
-  let ball=[250,200,3,3];
+  let p2=160;
+  let ball=[250,200,4,3];
   score=0;
 
-  addEventListener("mousemove",e=>{
-    p1=e.offsetY-40;
-  });
+  canvas.onmousemove = function(e){
+    let rect = canvas.getBoundingClientRect();
+    p1 = e.clientY - rect.top - 40;
+  };
 
   loop=setInterval(()=>{
     ctx.clearRect(0,0,500,400);
@@ -157,21 +173,30 @@ function pongGame(){
     ball[0]+=ball[2];
     ball[1]+=ball[3];
 
-    if(ball[1]<0||ball[1]>400)ball[3]*=-1;
+    if(ball[1]<0||ball[1]>400) ball[3]*=-1;
 
-    if(ball[0]<20&&ball[1]>p1&&ball[1]<p1+80){
+    if(ball[0]<20 && ball[1]>p1 && ball[1]<p1+80){
+      ball[2]*=-1;
+      beep(700,60);
+    }
+
+    if(ball[0]>480 && ball[1]>p2 && ball[1]<p2+80){
       ball[2]*=-1;
       score++;
       beep(700,60);
     }
 
-    if(ball[0]>480){
+    if(ball[0]<0){
       gameOver("Pong");
       return;
     }
 
+    p2 += (ball[1]-p2-40)*0.08;
+
     ctx.fillStyle="white";
     ctx.fillRect(10,p1,10,80);
+    ctx.fillRect(480,p2,10,80);
+
     ctx.beginPath();
     ctx.arc(ball[0],ball[1],8,0,Math.PI*2);
     ctx.fill();
@@ -180,17 +205,14 @@ function pongGame(){
   },20);
 }
 
-/* ---------- FLAPPY BIRD ---------- */
+/* ---------------- FLAPPY ---------------- */
+
 function flappyGame(){
-  let started=false;
-  let night=Math.random()<0.5;
+
   score=0;
+  let started=false;
 
-  let bird={
-    x:80,y:200,v:0,
-    color:["yellow","red","cyan","lime"][Math.floor(Math.random()*4)]
-  };
-
+  let bird={x:80,y:200,v:0};
   let pipes=[];
   let gravity=0.5;
   let jump=-8;
@@ -202,35 +224,33 @@ function flappyGame(){
     beep(800,60);
   }
 
-  addEventListener("keydown",e=>{
-    if(e.key===" ")flap();
-  });
-  canvas.addEventListener("touchstart",flap);
+  document.onkeydown=function(e){
+    if(e.code==="Space") flap();
+  };
+
+  canvas.onclick=flap;
+  canvas.ontouchstart=function(e){
+    e.preventDefault();
+    flap();
+  };
 
   loop=setInterval(()=>{
-    ctx.fillStyle=night?"#0b132b":"#70c5ce";
+    ctx.fillStyle="#70c5ce";
     ctx.fillRect(0,0,500,400);
-
-    ctx.fillStyle=night?"white":"rgba(255,255,255,0.6)";
-    for(let i=0;i<20;i++){
-      ctx.fillRect(Math.random()*500,Math.random()*200,2,2);
-    }
 
     if(!started){
       ctx.fillStyle="white";
       ctx.font="28px Arial";
-      ctx.fillText("FLAPPY BIRD",140,170);
-      ctx.font="16px Arial";
-      ctx.fillText("SPATIE of TIK",180,210);
+      ctx.fillText("SPATIE OF TIK",170,200);
       return;
     }
 
     bird.v+=gravity;
     bird.y+=bird.v;
 
-    ctx.fillStyle=bird.color;
+    ctx.fillStyle="yellow";
     ctx.beginPath();
-    ctx.arc(bird.x,bird.y,10,0,Math.PI*2);
+    ctx.arc(bird.x,bird.y,12,0,Math.PI*2);
     ctx.fill();
 
     if(pipes.length==0||pipes[pipes.length-1].x<300){
@@ -239,10 +259,11 @@ function flappyGame(){
     }
 
     pipes.forEach(p=>{
-      p.x-=2;
+      p.x-=3;
+
       ctx.fillStyle="green";
-      ctx.fillRect(p.x,0,40,p.top);
-      ctx.fillRect(p.x,p.top+gap,40,400);
+      ctx.fillRect(p.x,0,50,p.top);
+      ctx.fillRect(p.x,p.top+gap,50,400);
 
       if(!p.passed&&p.x<bird.x){
         p.passed=true;
@@ -250,8 +271,8 @@ function flappyGame(){
       }
 
       if(
-        bird.x+10>p.x&&bird.x-10<p.x+40&&
-        (bird.y-10<p.top||bird.y+10>p.top+gap)
+        bird.x+12>p.x&&bird.x-12<p.x+50&&
+        (bird.y-12<p.top||bird.y+12>p.top+gap)
       ){
         gameOver("Flappy Bird");
       }
@@ -266,38 +287,34 @@ function flappyGame(){
   },30);
 }
 
-/* ---------- PAC-MAN ---------- */
+/* ---------------- PACMAN ---------------- */
+
 function pacmanGame(){
-  clearInterval(loop);
   score=0;
 
   const tile=20;
   let map=[
     "###############",
     "#.............#",
-    "#.###.###.###..#",
     "#.............#",
-    "#.###.#.#.###..#",
-    "#.....#.#.....#",
-    "#####.#.#.#####",
     "#.............#",
-    "#.###.###.###..#",
+    "#.............#",
+    "#.............#",
+    "#.............#",
+    "#.............#",
+    "#.............#",
     "#.............#",
     "###############"
   ];
 
   let pac={x:1,y:1,dx:0,dy:0};
-  let ghosts=[
-    {x:7,y:5,dx:1,dy:0,color:"red"},
-    {x:9,y:5,dx:-1,dy:0,color:"pink"}
-  ];
 
-  addEventListener("keydown",e=>{
+  document.onkeydown=function(e){
     if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-1;}
     if(e.key==="ArrowDown"){pac.dx=0;pac.dy=1;}
     if(e.key==="ArrowLeft"){pac.dx=-1;pac.dy=0;}
     if(e.key==="ArrowRight"){pac.dx=1;pac.dy=0;}
-  });
+  };
 
   loop=setInterval(()=>{
     ctx.fillStyle="black";
@@ -318,15 +335,10 @@ function pacmanGame(){
 
     let nx=pac.x+pac.dx;
     let ny=pac.y+pac.dy;
+
     if(map[ny][nx]!=="#"){
       pac.x=nx;
       pac.y=ny;
-    }
-
-    if(map[pac.y][pac.x]==="."){
-      map[pac.y]=map[pac.y].substring(0,pac.x)+" "+map[pac.y].substring(pac.x+1);
-      score++;
-      beep(600,50);
     }
 
     ctx.fillStyle="yellow";
@@ -334,25 +346,6 @@ function pacmanGame(){
     ctx.arc(pac.x*tile+10,pac.y*tile+10,9,0.25*Math.PI,1.75*Math.PI);
     ctx.lineTo(pac.x*tile+10,pac.y*tile+10);
     ctx.fill();
-
-    ghosts.forEach(g=>{
-      if(Math.random()<0.1){
-        let d=[[1,0],[-1,0],[0,1],[0,-1]][Math.floor(Math.random()*4)];
-        g.dx=d[0]; g.dy=d[1];
-      }
-      if(map[g.y+g.dy][g.x+g.dx]!=="#"){
-        g.x+=g.dx; g.y+=g.dy;
-      }
-
-      ctx.fillStyle=g.color;
-      ctx.beginPath();
-      ctx.arc(g.x*tile+10,g.y*tile+10,9,Math.PI,0);
-      ctx.fillRect(g.x*tile+1,g.y*tile+10,18,9);
-
-      if(g.x===pac.x&&g.y===pac.y){
-        gameOver("Pac-Man");
-      }
-    });
 
     ctx.fillStyle="white";
     ctx.fillText("Score: "+score,10,20);
