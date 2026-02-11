@@ -2,253 +2,363 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Arcade GO!</title>
 
 <style>
 body{
   margin:0;
-  background:radial-gradient(circle at top,#222,#000);
-  color:white;
   font-family:Arial, sans-serif;
   text-align:center;
+  background: linear-gradient(180deg,#1e3c72,#2a5298);
+  color:white;
 }
 
-h1{margin-top:20px;}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
-  gap:15px;
-  max-width:520px;
-  margin:30px auto;
+h1{
+  margin:20px;
+  font-size:48px;
 }
 
-.tile{
-  background:#111;
-  border:2px solid #00ffcc;
-  padding:18px;
-  border-radius:16px;
-  font-size:16px;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.tile:hover{
-  background:#00ffcc;
-  color:black;
-  transform:scale(1.05);
-}
-
-#game{display:none;}
-canvas{
-  background:black;
-  border:2px solid #00ffcc;
-  margin-top:20px;
-}
-
-#gameOver{
-  display:none;
-  margin-top:15px;
-}
-button{
+#menu button{
+  font-size:18px;
   padding:10px 20px;
-  font-size:16px;
+  margin:6px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   cursor:pointer;
+}
+
+#menu button:hover{
+  background:#ffd700;
+}
+
+canvas{
+  display:block;
+  margin:20px auto;
+  background:black;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.6);
 }
 </style>
 </head>
 
 <body>
 
-<!-- ===== MENU ===== -->
+<h1>🎮 Arcade GO!</h1>
+
 <div id="menu">
-  <h1>🎮 Arcade GO!</h1>
-
-  <div class="grid">
-    <div class="tile" onclick="startGame('pacman')">🟡 Pac-Man</div>
-    <div class="tile" onclick="startGame('snake')">🐍 Snake</div>
-    <div class="tile" onclick="startGame('flappy')">🐦 Flappy Bird</div>
-    <div class="tile" onclick="startGame('tetris')">🧱 Tetris</div>
-
-    <div class="tile" onclick="startGame('pong')">🏓 Pong</div>
-    <div class="tile" onclick="startGame('breakout')">🧱 Breakout</div>
-    <div class="tile" onclick="startGame('asteroids')">🚀 Asteroids</div>
-    <div class="tile" onclick="startGame('frogger')">🐸 Frogger</div>
-  </div>
+  <button onclick="launch('snake')">🐍 Snake</button>
+  <button onclick="launch('pong')">🏓 Pong</button>
+  <button onclick="launch('flappy')">🐦 Flappy Bird</button>
+  <button onclick="launch('pacman')">🟡 Pac-Man</button>
+  <button onclick="toggleSound()">🔊 Geluid aan / uit</button>
 </div>
 
-<!-- ===== GAME ===== -->
-<div id="game">
-  <canvas id="canvas" width="320" height="320"></canvas>
-
-  <div id="gameOver">
-    <h2>💀 Game Over</h2>
-    <button onclick="backToMenu()">⬅ Menu</button>
-  </div>
-</div>
+<canvas id="game" width="500" height="400"></canvas>
 
 <script>
-const menu=document.getElementById("menu");
-const game=document.getElementById("game");
-const gameOver=document.getElementById("gameOver");
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+let canvas = document.getElementById("game");
+let ctx = canvas.getContext("2d");
 let loop;
+let score = 0;
+let soundOn = true;
 
-/* ===== BASIS ===== */
-function startGame(type){
-  menu.style.display="none";
-  game.style.display="block";
-  gameOver.style.display="none";
-  clearInterval(loop);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(type==="snake") startSnake();
-  if(type==="pong") startPong();
-  if(type==="flappy") startFlappy();
-  if(type==="pacman") startPacman();
-  if(type==="tetris") startTetris();
-  if(type==="breakout") startBreakout();
-  if(type==="asteroids") startAsteroids();
-  if(type==="frogger") startFrogger();
+function toggleSound(){
+  soundOn = !soundOn;
 }
 
-function backToMenu(){
-  clearInterval(loop);
-  game.style.display="none";
-  menu.style.display="block";
+function beep(freq,time){
+  if(!soundOn) return;
+  let a = new (window.AudioContext||window.webkitAudioContext)();
+  let o = a.createOscillator();
+  o.frequency.value = freq;
+  o.connect(a.destination);
+  o.start();
+  setTimeout(()=>o.stop(),time);
 }
 
-/* ===== SNAKE ===== */
-function startSnake(){
-  let x=160,y=160,dx=10,dy=0;
-  document.onkeydown=e=>{
-    if(e.key==="ArrowUp"){dx=0;dy=-10;}
-    if(e.key==="ArrowDown"){dx=0;dy=10;}
-    if(e.key==="ArrowLeft"){dx=-10;dy=0;}
-    if(e.key==="ArrowRight"){dx=10;dy=0;}
-  };
+function launch(game){
+  clearInterval(loop);
+  ctx.clearRect(0,0,500,400);
+  if(game==="snake") snakeGame();
+  if(game==="pong") pongGame();
+  if(game==="flappy") flappyGame();
+  if(game==="pacman") pacmanGame();
+}
+
+function gameOver(name){
+  clearInterval(loop);
+  ctx.fillStyle="rgba(0,0,0,0.7)";
+  ctx.fillRect(0,0,500,400);
+  ctx.fillStyle="white";
+  ctx.font="32px Arial";
+  ctx.fillText("GAME OVER",140,180);
+  ctx.font="18px Arial";
+  ctx.fillText(name+" | Score: "+score,150,220);
+}
+
+/* ---------- SNAKE ---------- */
+function snakeGame(){
+  let snake=[[200,200]];
+  let dir=[20,0];
+  let food=[100,100];
+  score=0;
+
+  addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp")dir=[0,-20];
+    if(e.key==="ArrowDown")dir=[0,20];
+    if(e.key==="ArrowLeft")dir=[-20,0];
+    if(e.key==="ArrowRight")dir=[20,0];
+  });
+
   loop=setInterval(()=>{
-    x+=dx;y+=dy;
-    if(x<0||y<0||x>310||y>310){end();}
-    ctx.clearRect(0,0,320,320);
+    ctx.clearRect(0,0,500,400);
+
+    let head=[snake[0][0]+dir[0],snake[0][1]+dir[1]];
+
+    if(head[0]<0||head[1]<0||head[0]>=500||head[1]>=400){
+      gameOver("Snake");
+      return;
+    }
+
+    snake.unshift(head);
+
+    if(head[0]==food[0]&&head[1]==food[1]){
+      score++;
+      food=[Math.floor(Math.random()*25)*20,Math.floor(Math.random()*20)*20];
+      beep(600,80);
+    }else{
+      snake.pop();
+    }
+
     ctx.fillStyle="lime";
-    ctx.fillRect(x,y,10,10);
-  },100);
-}
+    snake.forEach(s=>ctx.fillRect(s[0],s[1],20,20));
 
-/* ===== PONG ===== */
-function startPong(){
-  let paddleY=130, ballX=160, ballY=160, dx=3, dy=3;
-  document.onmousemove=e=>{
-    paddleY=e.clientY-canvas.getBoundingClientRect().top-30;
-  };
-  loop=setInterval(()=>{
-    ballX+=dx;ballY+=dy;
-    if(ballY<0||ballY>315) dy*=-1;
-    if(ballX<10 && ballY>paddleY && ballY<paddleY+60) dx*=-1;
-    if(ballX>320) end();
-    ctx.clearRect(0,0,320,320);
-    ctx.fillRect(0,paddleY,10,60);
-    ctx.beginPath();
-    ctx.arc(ballX,ballY,6,0,Math.PI*2);
-    ctx.fill();
-  },20);
-}
+    ctx.fillStyle="red";
+    ctx.fillRect(food[0],food[1],20,20);
 
-/* ===== FLAPPY ===== */
-function startFlappy(){
-  let y=150,dy=0;
-  document.onclick=()=>dy=-6;
-  loop=setInterval(()=>{
-    dy+=0.4;y+=dy;
-    if(y<0||y>300) end();
-    ctx.clearRect(0,0,320,320);
-    ctx.fillStyle="yellow";
-    ctx.fillRect(150,y,20,20);
-  },20);
-}
-
-/* ===== PACMAN ===== */
-function startPacman(){
-  let x=160,y=160;
-  document.onkeydown=e=>{
-    if(e.key==="ArrowUp")y-=10;
-    if(e.key==="ArrowDown")y+=10;
-    if(e.key==="ArrowLeft")x-=10;
-    if(e.key==="ArrowRight")x+=10;
-  };
-  loop=setInterval(()=>{
-    ctx.clearRect(0,0,320,320);
-    ctx.fillStyle="yellow";
-    ctx.beginPath();
-    ctx.arc(x,y,14,0,Math.PI*2);
-    ctx.fill();
-  },80);
-}
-
-/* ===== TETRIS (BASIS) ===== */
-function startTetris(){
-  let y=0;
-  loop=setInterval(()=>{
-    y+=10;
-    if(y>280) end();
-    ctx.clearRect(0,0,320,320);
-    ctx.fillStyle="cyan";
-    ctx.fillRect(140,y,40,40);
-  },300);
-}
-
-/* ===== BREAKOUT ===== */
-function startBreakout(){
-  let x=160,y=280;
-  document.onmousemove=e=>{
-    x=e.clientX-canvas.getBoundingClientRect().left-40;
-  };
-  loop=setInterval(()=>{
-    ctx.clearRect(0,0,320,320);
     ctx.fillStyle="white";
-    ctx.fillRect(x,y,80,10);
+    ctx.fillText("Score: "+score,10,20);
+  },120);
+}
+
+/* ---------- PONG ---------- */
+function pongGame(){
+  let p1=160;
+  let ball=[250,200,3,3];
+  score=0;
+
+  addEventListener("mousemove",e=>{
+    p1=e.offsetY-40;
+  });
+
+  loop=setInterval(()=>{
+    ctx.clearRect(0,0,500,400);
+
+    ball[0]+=ball[2];
+    ball[1]+=ball[3];
+
+    if(ball[1]<0||ball[1]>400)ball[3]*=-1;
+
+    if(ball[0]<20&&ball[1]>p1&&ball[1]<p1+80){
+      ball[2]*=-1;
+      score++;
+      beep(700,60);
+    }
+
+    if(ball[0]>480){
+      gameOver("Pong");
+      return;
+    }
+
+    ctx.fillStyle="white";
+    ctx.fillRect(10,p1,10,80);
+    ctx.beginPath();
+    ctx.arc(ball[0],ball[1],8,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillText("Score: "+score,10,20);
   },20);
 }
 
-/* ===== ASTEROIDS ===== */
-function startAsteroids(){
-  let x=160;
-  document.onkeydown=e=>{
-    if(e.key==="ArrowLeft")x-=10;
-    if(e.key==="ArrowRight")x+=10;
+/* ---------- FLAPPY BIRD ---------- */
+function flappyGame(){
+  let started=false;
+  let night=Math.random()<0.5;
+  score=0;
+
+  let bird={
+    x:80,y:200,v:0,
+    color:["yellow","red","cyan","lime"][Math.floor(Math.random()*4)]
   };
+
+  let pipes=[];
+  let gravity=0.5;
+  let jump=-8;
+  let gap=120;
+
+  function flap(){
+    bird.v=jump;
+    started=true;
+    beep(800,60);
+  }
+
+  addEventListener("keydown",e=>{
+    if(e.key===" ")flap();
+  });
+  canvas.addEventListener("touchstart",flap);
+
   loop=setInterval(()=>{
-    ctx.clearRect(0,0,320,320);
+    ctx.fillStyle=night?"#0b132b":"#70c5ce";
+    ctx.fillRect(0,0,500,400);
+
+    ctx.fillStyle=night?"white":"rgba(255,255,255,0.6)";
+    for(let i=0;i<20;i++){
+      ctx.fillRect(Math.random()*500,Math.random()*200,2,2);
+    }
+
+    if(!started){
+      ctx.fillStyle="white";
+      ctx.font="28px Arial";
+      ctx.fillText("FLAPPY BIRD",140,170);
+      ctx.font="16px Arial";
+      ctx.fillText("SPATIE of TIK",180,210);
+      return;
+    }
+
+    bird.v+=gravity;
+    bird.y+=bird.v;
+
+    ctx.fillStyle=bird.color;
+    ctx.beginPath();
+    ctx.arc(bird.x,bird.y,10,0,Math.PI*2);
+    ctx.fill();
+
+    if(pipes.length==0||pipes[pipes.length-1].x<300){
+      let top=Math.random()*200+40;
+      pipes.push({x:500,top:top,passed:false});
+    }
+
+    pipes.forEach(p=>{
+      p.x-=2;
+      ctx.fillStyle="green";
+      ctx.fillRect(p.x,0,40,p.top);
+      ctx.fillRect(p.x,p.top+gap,40,400);
+
+      if(!p.passed&&p.x<bird.x){
+        p.passed=true;
+        score++;
+      }
+
+      if(
+        bird.x+10>p.x&&bird.x-10<p.x+40&&
+        (bird.y-10<p.top||bird.y+10>p.top+gap)
+      ){
+        gameOver("Flappy Bird");
+      }
+    });
+
+    if(bird.y<0||bird.y>400){
+      gameOver("Flappy Bird");
+    }
+
     ctx.fillStyle="white";
-    ctx.fillRect(x,290,20,20);
+    ctx.fillText("Score: "+score,10,20);
   },30);
 }
 
-/* ===== FROGGER ===== */
-function startFrogger(){
-  let y=300;
-  document.onkeydown=e=>{
-    if(e.key==="ArrowUp")y-=20;
-  };
-  loop=setInterval(()=>{
-    if(y<0) end();
-    ctx.clearRect(0,0,320,320);
-    ctx.fillStyle="lime";
-    ctx.fillRect(150,y,20,20);
-  },100);
-}
-
-function end(){
+/* ---------- PAC-MAN ---------- */
+function pacmanGame(){
   clearInterval(loop);
-  gameOver.style.display="block";
+  score=0;
+
+  const tile=20;
+  let map=[
+    "###############",
+    "#.............#",
+    "#.###.###.###..#",
+    "#.............#",
+    "#.###.#.#.###..#",
+    "#.....#.#.....#",
+    "#####.#.#.#####",
+    "#.............#",
+    "#.###.###.###..#",
+    "#.............#",
+    "###############"
+  ];
+
+  let pac={x:1,y:1,dx:0,dy:0};
+  let ghosts=[
+    {x:7,y:5,dx:1,dy:0,color:"red"},
+    {x:9,y:5,dx:-1,dy:0,color:"pink"}
+  ];
+
+  addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-1;}
+    if(e.key==="ArrowDown"){pac.dx=0;pac.dy=1;}
+    if(e.key==="ArrowLeft"){pac.dx=-1;pac.dy=0;}
+    if(e.key==="ArrowRight"){pac.dx=1;pac.dy=0;}
+  });
+
+  loop=setInterval(()=>{
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,500,400);
+
+    for(let y=0;y<map.length;y++){
+      for(let x=0;x<map[y].length;x++){
+        if(map[y][x]==="#"){
+          ctx.fillStyle="blue";
+          ctx.fillRect(x*tile,y*tile,tile,tile);
+        }
+        if(map[y][x]==="."){
+          ctx.fillStyle="white";
+          ctx.fillRect(x*tile+8,y*tile+8,4,4);
+        }
+      }
+    }
+
+    let nx=pac.x+pac.dx;
+    let ny=pac.y+pac.dy;
+    if(map[ny][nx]!=="#"){
+      pac.x=nx;
+      pac.y=ny;
+    }
+
+    if(map[pac.y][pac.x]==="."){
+      map[pac.y]=map[pac.y].substring(0,pac.x)+" "+map[pac.y].substring(pac.x+1);
+      score++;
+      beep(600,50);
+    }
+
+    ctx.fillStyle="yellow";
+    ctx.beginPath();
+    ctx.arc(pac.x*tile+10,pac.y*tile+10,9,0.25*Math.PI,1.75*Math.PI);
+    ctx.lineTo(pac.x*tile+10,pac.y*tile+10);
+    ctx.fill();
+
+    ghosts.forEach(g=>{
+      if(Math.random()<0.1){
+        let d=[[1,0],[-1,0],[0,1],[0,-1]][Math.floor(Math.random()*4)];
+        g.dx=d[0]; g.dy=d[1];
+      }
+      if(map[g.y+g.dy][g.x+g.dx]!=="#"){
+        g.x+=g.dx; g.y+=g.dy;
+      }
+
+      ctx.fillStyle=g.color;
+      ctx.beginPath();
+      ctx.arc(g.x*tile+10,g.y*tile+10,9,Math.PI,0);
+      ctx.fillRect(g.x*tile+1,g.y*tile+10,18,9);
+
+      if(g.x===pac.x&&g.y===pac.y){
+        gameOver("Pac-Man");
+      }
+    });
+
+    ctx.fillStyle="white";
+    ctx.fillText("Score: "+score,10,20);
+  },150);
 }
 </script>
 
 </body>
 </html>
-
