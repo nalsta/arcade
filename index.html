@@ -2,98 +2,128 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<title>Arcade GO!</title>
+<title>Arcade GO</title>
 
 <style>
 body{
   margin:0;
+  background:#111;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
   font-family:Arial, sans-serif;
+}
+
+.arcade{
+  width:720px;
+  height:780px;
+  background:linear-gradient(145deg,#222,#000);
+  border-radius:40px;
+  box-shadow:0 0 60px #00ffff;
+  padding:30px;
+}
+
+.screen{
+  background:black;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:inset 0 0 40px #00ffff;
   text-align:center;
-  background: linear-gradient(180deg,#1e3c72,#2a5298);
   color:white;
 }
 
 h1{
-  margin:20px;
   font-size:48px;
+  margin:10px;
+  text-shadow:0 0 20px #00ffff;
 }
 
 #menu button{
-  font-size:18px;
-  padding:10px 20px;
   margin:6px;
+  padding:12px 20px;
   border:none;
-  border-radius:8px;
+  border-radius:12px;
+  background:linear-gradient(45deg,#00ffff,#ff00ff);
+  color:black;
+  font-weight:bold;
   cursor:pointer;
+  transition:0.2s;
+  box-shadow:0 0 15px #00ffff;
 }
 
 #menu button:hover{
-  background:#ffd700;
+  transform:scale(1.1);
+  box-shadow:0 0 25px #ff00ff;
 }
 
 canvas{
-  display:block;
-  margin:20px auto;
-  background:black;
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(0,0,0,0.6);
+  margin-top:20px;
+  border-radius:20px;
+  box-shadow:0 0 30px #00ffff;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🎮 Arcade GO!</h1>
+<div class="arcade">
+<div class="screen">
+
+<h1>ARCADE GO</h1>
 
 <div id="menu">
-  <button onclick="launch('snake')">🐍 Snake</button>
-  <button onclick="launch('pong')">🏓 Pong</button>
-  <button onclick="launch('flappy')">🐦 Flappy Bird</button>
-  <button onclick="launch('pacman')">🟡 Pac-Man</button>
-  <button onclick="toggleSound()">🔊 Geluid aan / uit</button>
+<button onclick="launch('snake')">🐍 Snake</button>
+<button onclick="launch('pong')">🏓 Pong</button>
+<button onclick="launch('flappy')">🐦 Flappy</button>
+<button onclick="launch('breakout')">🧱 Breakout</button>
+<button onclick="launch('pacman')">🟡 Pac-Man</button>
+<button onclick="toggleMusic()">🎵 Muziek aan/uit</button>
 </div>
 
 <canvas id="game" width="500" height="400"></canvas>
 
+</div>
+</div>
+
 <script>
 let canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
-let loop = null;
+let loop;
 let score = 0;
-let soundOn = true;
-let currentGame = "";
+
+/* ---------------- MUZIEK ---------------- */
+
+let music = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_6d5c1b6a8f.mp3?filename=arcade-music-loop-110624.mp3");
+music.loop = true;
+music.volume = 0.4;
+
+function toggleMusic(){
+  if(music.paused){
+    music.play();
+  }else{
+    music.pause();
+  }
+}
+
+/* ---------------- BASIS ---------------- */
 
 function clearGame(){
   clearInterval(loop);
-  loop = null;
   document.onkeydown = null;
   canvas.onclick = null;
   canvas.ontouchstart = null;
-  canvas.onmousemove = null;
-}
-
-function toggleSound(){
-  soundOn = !soundOn;
-}
-
-function beep(freq,time){
-  if(!soundOn) return;
-  let a = new (window.AudioContext||window.webkitAudioContext)();
-  let o = a.createOscillator();
-  o.frequency.value = freq;
-  o.connect(a.destination);
-  o.start();
-  setTimeout(()=>o.stop(),time);
+  canvas.ontouchmove = null;
 }
 
 function launch(game){
   clearGame();
   ctx.clearRect(0,0,500,400);
-  currentGame = game;
 
   if(game==="snake") snakeGame();
   if(game==="pong") pongGame();
   if(game==="flappy") flappyGame();
+  if(game==="breakout") breakoutGame();
   if(game==="pacman") pacmanGame();
 }
 
@@ -102,10 +132,9 @@ function gameOver(name){
   ctx.fillStyle="rgba(0,0,0,0.7)";
   ctx.fillRect(0,0,500,400);
   ctx.fillStyle="white";
-  ctx.font="32px Arial";
+  ctx.font="30px Arial";
   ctx.fillText("GAME OVER",150,180);
-  ctx.font="18px Arial";
-  ctx.fillText(name+" | Score: "+score,160,220);
+  ctx.fillText(name+" | Score: "+score,130,220);
 }
 
 /* ---------------- SNAKE ---------------- */
@@ -116,7 +145,7 @@ function snakeGame(){
   let food=[100,100];
   score=0;
 
-  document.onkeydown = function(e){
+  document.onkeydown=e=>{
     if(e.key==="ArrowUp")dir=[0,-20];
     if(e.key==="ArrowDown")dir=[0,20];
     if(e.key==="ArrowLeft")dir=[-20,0];
@@ -138,7 +167,6 @@ function snakeGame(){
     if(head[0]==food[0]&&head[1]==food[1]){
       score++;
       food=[Math.floor(Math.random()*25)*20,Math.floor(Math.random()*20)*20];
-      beep(600,80);
     }else{
       snake.pop();
     }
@@ -157,51 +185,56 @@ function snakeGame(){
 /* ---------------- PONG ---------------- */
 
 function pongGame(){
+
   let p1=160;
   let p2=160;
-  let ball=[250,200,4,3];
-  score=0;
+  let ball={x:250,y:200,vx:5,vy:4};
+  let keys={};
 
-  canvas.onmousemove = function(e){
-    let rect = canvas.getBoundingClientRect();
-    p1 = e.clientY - rect.top - 40;
+  document.onkeydown=e=>keys[e.key]=true;
+  document.onkeyup=e=>keys[e.key]=false;
+
+  canvas.ontouchmove=e=>{
+    let rect=canvas.getBoundingClientRect();
+    let x=e.touches[0].clientX-rect.left;
+    let y=e.touches[0].clientY-rect.top;
+
+    if(x<250) p1=y-40;
+    else p2=y-40;
   };
 
   loop=setInterval(()=>{
     ctx.clearRect(0,0,500,400);
 
-    ball[0]+=ball[2];
-    ball[1]+=ball[3];
+    if(keys["w"])p1-=6;
+    if(keys["s"])p1+=6;
+    if(keys["ArrowUp"])p2-=6;
+    if(keys["ArrowDown"])p2+=6;
 
-    if(ball[1]<0||ball[1]>400) ball[3]*=-1;
+    p1=Math.max(0,Math.min(320,p1));
+    p2=Math.max(0,Math.min(320,p2));
 
-    if(ball[0]<20 && ball[1]>p1 && ball[1]<p1+80){
-      ball[2]*=-1;
-      beep(700,60);
+    ball.x+=ball.vx;
+    ball.y+=ball.vy;
+
+    if(ball.y<0||ball.y>400)ball.vy*=-1;
+
+    if(ball.x<20&&ball.y>p1&&ball.y<p1+80)ball.vx*=-1;
+    if(ball.x>480&&ball.y>p2&&ball.y<p2+80)ball.vx*=-1;
+
+    if(ball.x<0||ball.x>500){
+      ball.x=250;
+      ball.y=200;
     }
-
-    if(ball[0]>480 && ball[1]>p2 && ball[1]<p2+80){
-      ball[2]*=-1;
-      score++;
-      beep(700,60);
-    }
-
-    if(ball[0]<0){
-      gameOver("Pong");
-      return;
-    }
-
-    p2 += (ball[1]-p2-40)*0.08;
 
     ctx.fillStyle="white";
     ctx.fillRect(10,p1,10,80);
     ctx.fillRect(480,p2,10,80);
 
     ctx.beginPath();
-    ctx.arc(ball[0],ball[1],8,0,Math.PI*2);
+    ctx.arc(ball.x,ball.y,8,0,Math.PI*2);
     ctx.fill();
 
-    ctx.fillText("Score: "+score,10,20);
   },20);
 }
 
@@ -211,7 +244,6 @@ function flappyGame(){
 
   score=0;
   let started=false;
-
   let bird={x:80,y:200,v:0};
   let pipes=[];
   let gravity=0.5;
@@ -221,15 +253,14 @@ function flappyGame(){
   function flap(){
     bird.v=jump;
     started=true;
-    beep(800,60);
   }
 
-  document.onkeydown=function(e){
+  document.onkeydown=e=>{
     if(e.code==="Space") flap();
   };
 
   canvas.onclick=flap;
-  canvas.ontouchstart=function(e){
+  canvas.ontouchstart=e=>{
     e.preventDefault();
     flap();
   };
@@ -240,7 +271,6 @@ function flappyGame(){
 
     if(!started){
       ctx.fillStyle="white";
-      ctx.font="28px Arial";
       ctx.fillText("SPATIE OF TIK",170,200);
       return;
     }
@@ -287,10 +317,77 @@ function flappyGame(){
   },30);
 }
 
+/* ---------------- BREAKOUT ---------------- */
+
+function breakoutGame(){
+
+  let paddle=200;
+  let ball={x:250,y:300,vx:4,vy:-4};
+  let bricks=[];
+  score=0;
+
+  for(let r=0;r<4;r++){
+    for(let c=0;c<8;c++){
+      bricks.push({x:60*c+30,y:30*r+30,alive:true});
+    }
+  }
+
+  document.onkeydown=e=>{
+    if(e.key==="ArrowLeft")paddle-=20;
+    if(e.key==="ArrowRight")paddle+=20;
+  };
+
+  canvas.ontouchmove=e=>{
+    let rect=canvas.getBoundingClientRect();
+    paddle=e.touches[0].clientX-rect.left-40;
+  };
+
+  loop=setInterval(()=>{
+    ctx.clearRect(0,0,500,400);
+
+    paddle=Math.max(0,Math.min(420,paddle));
+
+    ball.x+=ball.vx;
+    ball.y+=ball.vy;
+
+    if(ball.x<0||ball.x>500)ball.vx*=-1;
+    if(ball.y<0)ball.vy*=-1;
+
+    if(ball.y>360&&ball.x>paddle&&ball.x<paddle+80){
+      ball.vy*=-1;
+    }
+
+    if(ball.y>400){
+      gameOver("Breakout");
+    }
+
+    bricks.forEach(b=>{
+      if(b.alive){
+        ctx.fillStyle="orange";
+        ctx.fillRect(b.x,b.y,50,20);
+
+        if(ball.x>b.x&&ball.x<b.x+50&&
+           ball.y>b.y&&ball.y<b.y+20){
+          b.alive=false;
+          ball.vy*=-1;
+          score++;
+        }
+      }
+    });
+
+    ctx.fillStyle="white";
+    ctx.fillRect(paddle,380,80,10);
+
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,8,0,Math.PI*2);
+    ctx.fill();
+
+  },20);
+}
+
 /* ---------------- PACMAN ---------------- */
 
 function pacmanGame(){
-  score=0;
 
   const tile=20;
   let map=[
@@ -309,7 +406,7 @@ function pacmanGame(){
 
   let pac={x:1,y:1,dx:0,dy:0};
 
-  document.onkeydown=function(e){
+  document.onkeydown=e=>{
     if(e.key==="ArrowUp"){pac.dx=0;pac.dy=-1;}
     if(e.key==="ArrowDown"){pac.dx=0;pac.dy=1;}
     if(e.key==="ArrowLeft"){pac.dx=-1;pac.dy=0;}
@@ -347,8 +444,6 @@ function pacmanGame(){
     ctx.lineTo(pac.x*tile+10,pac.y*tile+10);
     ctx.fill();
 
-    ctx.fillStyle="white";
-    ctx.fillText("Score: "+score,10,20);
   },150);
 }
 </script>
